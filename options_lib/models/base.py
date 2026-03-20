@@ -13,7 +13,7 @@ class Model(ABC):
         down = self.price(instrument, MarketData(market.spot - h, market.rate, market.div_yield))
         return (up - down) / (2 * h)
     
-    def evga(self, instrument: Instrument, market: MarketData) -> float:
+    def vega(self, instrument: Instrument, market: MarketData) -> float:
         raise NotImplementedError(
             f'{type(self.__name__)} does not expose a sigma parameter. Override vega() in the subclass'
         )
