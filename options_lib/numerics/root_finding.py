@@ -68,4 +68,59 @@ def brent(
         f"Brent's method did not converge in {max_iter} iterations."
         f"Final bracket: [{a:.6f}, {b:.6f}], width: {abs(b-a):.2e}"
     )
-            
+
+def newton_raphson(
+        f: Callable[[float], float],
+        df: Callable[[float], float],
+        x0: float,
+        tol: float = 1e-8,
+        max_iter: int = 50
+) -> float:
+    x = x0 
+    for i in range(max_iter):
+        fx = f(x)
+        if abs(fx) < tol:
+            return x 
+        dfx = df(x)
+        if abs(dfx) < 1e-12:
+            raise ConvergenceError(
+                f"Newton-Raphson: derivative too small ({dfx:.2e} at x={x:.6f})"
+                "Likely near zero-Vega region. Switch to Brent's method"
+            )
+        x = x - fx / dfx 
+        x = max(x, 1e-6)
+        x = min(x, 10.0) 
+
+        raise ConvergenceError(
+            f"Newton-Raphson: did not converge in {max_iter} iterations."
+            f"Last value: x={x:.6f}, f(x)={f(x):.2e}"
+        )           
+    
+def implied_vol(
+        market_price: float,
+        pricer: Callable[[float], float],
+        vega_fn: Callable[[float], float],
+        sigma_init: float = 0.20,
+        tol: float = 1e-6,
+) -> float:
+    objective = lambda sigma: pricer(sigma) - market_price
+    derivative = lambda sigma: vega_fn(sigma)
+
+    try:
+        iv = newton_raphson(objective, derivative, x0=sigma_init, tol=tol)
+        if 1e-6 < iv < 10.0:
+            return iv 
+    except ConvergenceError:
+        pass 
+
+    lo, hi = 1e-4, 5.0
+    f_lo = objective(lo)
+    f_hi = objective(hi)
+
+    if f_lo * f_hi > 0:
+        raise ValueError(
+            f"Market price {market_price:.4} is outside the no-arbitrage range."
+            f"Model price at sigma={lo}: {pricer(lo):.4f}, at sigma={hi}: {pricer(hi):.4f}."
+            "Chekc for stable/erroneous market data."
+        )
+    return brent(objective, lo, hi, tol=tol)
