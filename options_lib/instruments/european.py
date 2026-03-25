@@ -1,9 +1,26 @@
+"""
+file: instruments/european.py
+Vanilla European call and put option 
+
+Can only exercised at expiry T.
+Payoff:
+    Call: max(S_T - K, 0)
+    Put: max(K - S_T, 0)
+"""
+
 import numpy as np 
 from dataclasses import dataclass 
 from options_lib.instruments.base import Instrument, OptionType, ExerciseStyle
 
 @dataclass
 class EuropeanOption(Instrument):
+    """
+    Vanilla european option
+    ---
+    strike: float
+    expiry: float => Time expiry in years
+    option_type: OptionType => can be put or call
+    """
     strike: float 
     _expiry: float 
     option_type: OptionType
@@ -18,6 +35,9 @@ class EuropeanOption(Instrument):
         self.option_type = option_type
 
     def payoff(self, spots: np.ndarray) -> np.ndarray:
+        """
+        Terminal payoff for an array of spot prices.
+        """
         spots = np.asarray(spots, dtype=float)
         if self.option_type == OptionType.CALL:
             return np.maximum(spots - self.strike, 0.0)
@@ -32,7 +52,10 @@ class EuropeanOption(Instrument):
     def exercise_style(self):
         return ExerciseStyle.EUROPEAN
     
-    def with_expiry(self, new_expiry: float) -> 'EuropeanOption':
+    def with_expiry(self, new_expiry: float) -> "EuropeanOption":
+        """
+        Returns a copy of this option with a different expiry. 
+        """
         return EuropeanOption(
             strike=self.strike,
             expiry=new_expiry,
