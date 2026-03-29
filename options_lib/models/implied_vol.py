@@ -1,3 +1,10 @@
+"""
+file: models/implied_vol.py 
+Calculates implied volatility using the black scholes model.
+Finding the value of sigma which makes the BS option price 
+equal to the market price.
+"""
+
 import numpy as np 
 from options_lib.models.black_scholes import BlackScholes
 from options_lib.instruments.european import EuropeanOption
@@ -11,6 +18,11 @@ def implied_vol_bs(
         sigma_init: float = 0.20,
         tol: float = 1e-6
 ) -> float:
+    """
+    Compute black scholes implied volatility from market data.
+    Pricer and vega fn are partially applied with all variables 
+    except sigma. This converts the BS formula into a single variable function ready for the root finder.
+    """
     def pricer(sigma: float) -> float:
         model = BlackScholes(sigma=sigma)
         return model.price(instrument, market)
