@@ -4,7 +4,7 @@ from scipy.interpolate import interp1d
 from dataclasses import dataclass, field 
 from typing import Optional
 
-from options_lib.models.base import Model
+from options_lib.models.base import Model 
 from options_lib.models.black_scholes import BlackScholes
 from options_lib.models.implied_vol import implied_vol_bs
 from options_lib.instruments.base import Instrument, MarketData, OptionType
@@ -14,10 +14,10 @@ from options_lib.numerics.fft import carr_madan_fft, interpolate_call_price
 @dataclass
 class HestonParams:
     v0: float
-    kappa: float
-    v_bar: float
-    xi: float
-    rho: float
+    kappa: float 
+    v_bar: float 
+    xi: float 
+    rho: float 
 
     def __post_init__(self):
         if self.v0 <= 0:
@@ -41,7 +41,7 @@ class HestonParams:
     
     @property
     def long_run_vol(self) -> float:
-        return np.sqrt(self.v_bar)
+        return np.sqrt(self.v0)
     
     def __repr__(self) -> str:
         feller = "✓" if self.feller_satisfied else "✗"
@@ -58,67 +58,67 @@ class HestonParams:
 @dataclass
 class Heston(Model):
     params: HestonParams
-    alpha: float = 1.5
+    alpha: float = 1.5 
     N: int = 4096 
     eta: float = 0.25 
 
-    def charecteristic_function(
-            self, 
-            u: np.ndarray,
-            T: float,
-            S: float,
-            r: float,
-            q: float
+    def characteristic_function(
+        self,
+        u: np.ndarray,
+        T: float,
+        S: float,
+        r: float,
+        q: float
     ) -> np.ndarray:
         kappa = self.params.kappa
         v_bar = self.params.v_bar
         xi = self.params.xi
-        rho = self.params.rho 
+        rho = self.params.rho   
         v0 = self.params.v0 
 
         d = np.sqrt(
             (kappa - rho * xi * 1j * u) ** 2
-            + xi **2 * (u**2 + 1j * u)
+            + (xi ** 2 * (u ** 2 + 1j * u))
         )
 
-        numer_g = kappa - rho * xi * 1j * u - d
+        numer_g = kappa - rho * xi * 1j * u - d 
         denom_g = kappa - rho * xi * 1j * u + d 
-        g = numer_g / denom_g
+        g = numer_g / denom_g 
 
-        exp_neg_dT = np.exp(-d * T)
-        B = (numer_g * (1 - exp_neg_dT)
-             / (xi ** 2 * (1 - g * exp_neg_dT)))
+        exp_neg_dt = np.exp(-d * T)
+        B = (numer_g * (1 - exp_neg_dt)
+             / (xi ** 2 * (1 - g * exp_neg_dt)))
         
-        log_term = np.log((1 - g * exp_neg_dT) / (1 - g))
+        log_term = np.log((1 - g * exp_neg_dt) / (1 - g))
         A = ((r - q) * 1j * u * T
-             + (kappa * v_bar / xi **2)
-             * (numer_g * T - 2 * log_term))
+             + (kappa * v_bar / xi ** 2)
+             + (numer_g * T - 2 * log_term))
         
         phi = np.exp(A + B * v0 + 1j * u * np.log(S))
         return phi 
     
-    def price(
-            self, 
-            instrument: Instrument,
-            market: MarketData
-    ) -> float:
+    def price(self, instrument: Instrument, market: MarketData) -> float:
         if not isinstance(instrument, EuropeanOption):
             raise NotImplementedError(
-                'Heston analytical pricer only supports EuropeanOption.'
+                f"Heston pricer only supports EurpoeanOption."
+                f"Got {type(instrument).__name__}. Use MonteCarlo or FinitDifferences"
             )
         
         S = market.spot 
-        K = instrument.strike 
+        K  =instrument.strike 
         T = instrument.expiry
         r = market.rate 
-        q =  market.div_yield
+        q = market.div_yield
 
         def char_fn(u):
-            return self.charecteristic_function(u, T, S, r, q)
+            return self.characteristic_function(u, T, S, r, q)
         
         strikes, call_prices = carr_madan_fft(
             char_fn=char_fn,
-            S=S, T=T, r=r, q=q,
+            S=S,
+            T=T,
+            r=r,
+            q=q,
             alpha=self.alpha,
             N=self.N,
             eta=self.eta
@@ -127,48 +127,49 @@ class Heston(Model):
         call_price = interpolate_call_price(strikes, call_prices, K)
 
         if instrument.option_type == OptionType.PUT:
-            put_price = call_price  - S * np.exp(-q * T) + K * np.exp(-r * T) 
+            put_price = call_price - S * np.exp(-q * T) + K * np.exp(-r * T)
             return float(max(put_price, 0.0))
-        
         return float(max(call_price, 0.0))
     
     def price_smile(
-            self,
-            strikes: np.ndarray,
-            expiry: float,
-            market: MarketData,
-            option_type: OptionType = OptionType.CALL
+        self, 
+        strikes: np.ndarray,
+        expiry: float,
+        market: MarketData,
+        option_type: OptionType = OptionType.CALL
     ) -> np.ndarray:
         S = market.spot 
-        T = expiry
         r = market.rate 
         q = market.div_yield
+        T = expiry
 
         def char_fn(u):
-            return self.charecteristic_function(u, T, S, r, q)
+            return self.characteristic_function(u, T, S, r, q)
         
-        fft_strikes, fft_prices = carr_madan_fft(
-            char_fn=char_fn, 
-            S=S, T=T, r=r, q=q,
+        strikes, call_prices = carr_madan_fft(
+            char_fn=char_fn,
+            S=S,
+            T=T,
+            r=r,
+            q=q,
             alpha=self.alpha,
             N=self.N,
             eta=self.eta
         )
 
-        call_prices = np.interp(strikes, fft_strikes, fft_prices)
+        call_prices = np.interp(strikes, strikes, call_prices)
         call_prices = np.maximum(call_prices, 0.0)
 
         if option_type == OptionType.PUT:
             put_prices = call_prices - S * np.exp(-q * T) + strikes * np.exp(-r * T)
             return np.maximum(put_prices, 0.0)
-        
         return call_prices
     
     def implied_vol_smile(
         self, 
         strikes: np.ndarray,
         expiry: float,
-        market: MarketData
+        market: MarketData,
     ) -> np.ndarray:
         call_prices = self.price_smile(strikes, expiry, market, OptionType.CALL)
         iv_smile = np.full(len(strikes), np.nan)
@@ -178,7 +179,7 @@ class Heston(Model):
                 iv_smile[i] = implied_vol_bs(
                     market_price=C,
                     instrument=opt,
-                    market=market
+                    market=market,
                     sigma_init=np.sqrt(self.params.v0)
                 )
             except Exception:
@@ -192,16 +193,16 @@ class Heston(Model):
         market_ivs: np.ndarray,
         market_data: MarketData,
         initial_params: Optional[HestonParams] = None,
-        verbose: bool = False 
+        verbose: bool = False
     ) -> 'Heston':
         if initial_params is None:
             mean_iv = float(np.nanmean(market_ivs))
             initial_params = HestonParams(
-                v0 = mean_iv ** 2,
+                v0 = mean_iv**2,
                 kappa = 2.0,
-                v_bar = mean_iv *8 2,
+                v_bar = mean_iv**2,
                 xi = 0.3, 
-                rho = -0.7
+                rho = -0.7 
             )
 
         x0 = np.array([
@@ -213,7 +214,7 @@ class Heston(Model):
         ])
 
         bounds = Bounds(
-            lb=[1e-4, 0.1, 1e-4, 0.01, -0.99],
+            lb=[1e-4, 0.2, 1e-4, 0.01, -0.99],
             ub=[1.0, 10.0, 1.0, 2.0, 0.99]
         )
 
@@ -221,11 +222,11 @@ class Heston(Model):
 
         def objective(x):
             v0, kappa, v_bar, xi, rho = x 
-            try:
-                params = HestonParams(v0=v0, kappa=kappa, v_bar=v_bar, xi=xi, rho=rho)
-                model = Heston(params, alpha=self.alpha, N=self.N, eta=self.eta)
+            try: 
+                params = HestonParams(v0, kappa, v_bar, xi, rho)
+                model = Heston(params=params, alpha=self.alpha, N=self.N, eta=self.eta)
             except ValueError:
-                return 1e6
+                return 1e6 
             
             errors = []
             unique_expiries = np.unique(market_expiries)
@@ -237,48 +238,48 @@ class Heston(Model):
 
                 try:
                     model_ivs = model.implied_vol_smile(strikes, T, market_data)
-                    valid = -np.isnan(model_ivs)
+                    valid = ~np.isnan(model_ivs)
                     if valid.any():
-                        errors.extend((model_ivs[valid] - mkt_ivs[valid]) ** 2)
+                        errors.extend((model_ivs[valid] - mkt_ivs[valid])**2)
                 except Exception:
                     errors.append(1.0)
             if not errors:
-                return 1e-6 
+                return 1e6 
             
             rmse = np.sqrt(np.mean(errors))
 
-            iteration[0] += 1 
+            iteration[0] += 1
             if verbose and iteration[0] % 20 == 0:
                 print(f"  Iter {iteration[0]:4d}: RMSE = {rmse*100:.4f}%  "
-                 f"params = v0={v0:.4f}, κ={kappa:.3f}, "
-                 f"v̄={v_bar:.4f}, ξ={xi:.3f}, ρ={rho:.3f}")
+                      f"params = v0={v0:.4f}, κ={kappa:.3f}, "
+                      f"v̄={v_bar:.4f}, ξ={xi:.3f}, ρ={rho:.3f}")
+ 
             return float(rmse)
-        
+ 
         if verbose:
             print("Starting Heston calibration...")
             print(f"  {len(market_strikes)} market quotes, "
                   f"{len(np.unique(market_expiries))} expiries")
-            
+ 
         result = minimize(
-            objective, 
+            objective,
             x0,
             method='L-BFGS-B',
             bounds=bounds,
             options={'maxiter': 1000, 'ftol': 1e-10, 'gtol': 1e-8}
         )
-
-        v0, kappa, v_bar, xi, rho = result.x 
+ 
+        v0, kappa, v_bar, xi, rho = result.x
         calibrated_params = HestonParams(
             v0=v0, kappa=kappa, v_bar=v_bar, xi=xi, rho=rho
         )
-
+ 
         if verbose:
             print(f"\nCalibration {'converged' if result.success else 'did not converge'}.")
             print(f"  Final RMSE: {result.fun * 100:.4f}%")
             print(f"  {calibrated_params}")
-
+ 
         return Heston(calibrated_params, alpha=self.alpha, N=self.N, eta=self.eta)
     
-    def __repr__(self) -> str:
+    def __repr__(self):
         return f'Heston({self.params})'
-        
