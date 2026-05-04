@@ -115,6 +115,10 @@ if data_mode == "Live (yfinance)":
         with st.spinner("Fetching data..."):
             surface = get_live_surface(ticker, live_r, live_q)
             st.session_state['live_greek_data'] = (surface, surface.spot, live_r, live_q)
+            
+            # ✅ ADD THIS LINE: Unpack the variables so the rest of the script can use them right now
+            S, r, q = surface.spot, live_r, live_q
+            
     elif 'live_greek_data' in st.session_state:
         surface, S, r, q = st.session_state['live_greek_data']
     else:
@@ -128,7 +132,7 @@ else:
 sigma_ref = float(surface.svi_slices[list(surface.svi_slices.keys())[0]].implied_vol(np.array([0.0]))[0])
 
 otype = OptionType.CALL if opt_type == "Call" else OptionType.PUT
-mkt   = MarketData(spot=S, rate=r, div_yield=q)
+mkt   = MarketData(S, r, q)
 
 if model_choice == "Heston (Surface Calibrated)":
     with st.spinner("Calibrating Heston..."):

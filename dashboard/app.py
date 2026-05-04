@@ -30,6 +30,7 @@ from options_lib import (BlackScholes, EuropeanOption, AmericanOption,
 from options_lib.numerics import CrankNicolson, LongstaffSchwartz, HestonSimulator
 from options_lib.market_data.option_chain import fetch_option_chain
 from options_lib.market_data.vol_surface import calibrate_vol_surface, SVIParams, VolSurface
+from options_lib.risk import VegaMatrix
 
 st.set_page_config(
     page_title="Options Pricer",

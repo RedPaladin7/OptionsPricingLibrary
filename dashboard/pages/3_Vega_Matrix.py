@@ -176,8 +176,7 @@ with bar1:
         textposition='outside',
         textfont=dict(size=10, color='#e8eaf0'),
     ))
-    fig_ev.update_layout(**PLOTLY_LAYOUT, height=260, yaxis_title=f"$ / {bump_bp:.0f}bp",
-                          yaxis=dict(gridcolor='#1e2530', linecolor='#1e2530'))
+    fig_ev.update_layout(**PLOTLY_LAYOUT, height=260, yaxis_title=f"$ / {bump_bp:.0f}bp")
     st.plotly_chart(fig_ev, use_container_width=True)
 
 with bar2:
@@ -191,8 +190,7 @@ with bar2:
         textfont=dict(size=10, color='#e8eaf0'),
     ))
     fig_sv.update_layout(**PLOTLY_LAYOUT, height=260,
-                          xaxis_title="Strike", yaxis_title=f"$ / {bump_bp:.0f}bp",
-                          yaxis=dict(gridcolor='#1e2530', linecolor='#1e2530'))
+                          xaxis_title="Strike", yaxis_title=f"$ / {bump_bp:.0f}bp")
     st.plotly_chart(fig_sv, use_container_width=True)
 
 st.markdown("---")
