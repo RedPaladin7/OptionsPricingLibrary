@@ -1,81 +1,91 @@
 """
-file: instruments/base.py
+instruments/base.py
+-------------------
 Abstract base class for all financial instruments.
 
-Instrument defines what the contract is:
-Payoff structure, exercise rights, expiry. 
-Knows nothing about how to price itself.
+An instrument defines WHAT the contract is — its payoff structure,
+exercise rights, and expiry. It knows nothing about how to price itself.
+That is the model's job.
 """
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum 
+from enum import Enum
 import numpy as np
 
-# grouping related constants under same namespace
+
 class OptionType(Enum):
-    CALL = 'call'
-    PUT = 'put'
+    CALL = "call"
+    PUT  = "put"
+
 
 class ExerciseStyle(Enum):
-    EUROPEAN = 'european' # can be exercised only at expiry
-    AMERICAN = 'american' # can be exercised at any time up to expiry
+    EUROPEAN = "european"   # exercise only at expiry
+    AMERICAN = "american"   # exercise any time up to expiry
 
-# dataclass is used because this is a class used primarily to store data rather than perform any compelx logic
-# option holder does not receive the dividens (stock holder does) so it effectively reduces the drift
+
 @dataclass
 class MarketData:
     """
-    Market inputs needed to price an option
-    ---
-    spot: float 
-        Current price of the underlying asset S_0
-    rate: float
-        Risk free interest rate r 
-    div_yield: float:
-        Continuous dividend yield 
-        Set to 0 for non dividend paying stocks
-    """
-    spot:       float 
-    rate:       float 
-    div_yield:  float = 0.0 
+    All market inputs needed to price an option.
 
-# property tags makes the method a getter (allows you to call the method as it were a simple attribute)
-# any class that inherits from instruments must implement its own version of the abstract method
-# This is a abstract base class, you cannot create an instance of this
+    Attributes
+    ----------
+    spot : float
+        Current underlying price S_0.
+    rate : float
+        Continuously compounded risk-free rate r.
+    div_yield : float
+        Continuous dividend yield q. Modifies drift to (r - q).
+        For non-dividend paying stocks, set to 0.
+    """
+    spot      : float
+    rate      : float
+    div_yield : float = 0.0
+
+
 class Instrument(ABC):
+    """
+    Abstract base class for all instruments.
+
+    Every concrete instrument must implement:
+      - payoff(spots)  : vectorised payoff at expiry given an array of spot prices
+      - expiry         : time to expiry in years (property)
+      - exercise_style : European or American (property)
+    """
+
     @abstractmethod
-    def payoff(self, sports:np.ndarray) -> np.ndarray:
+    def payoff(self, spots: np.ndarray) -> np.ndarray:
         """
-        Terminal payoff for an array of spot prices.
-        ---
-        spots: np.ndarray
-            Array of spot prices.
-        ---
-        Returns 
+        Compute the terminal payoff for an array of spot prices.
+
+        Parameters
+        ----------
+        spots : np.ndarray
+            Array of underlying prices at expiry.
+
+        Returns
+        -------
         np.ndarray
-            Payoff at each spot price.
+            Payoff at each spot price. Must be non-negative.
         """
-        ... 
-    
+        ...
+
     @property
     @abstractmethod
     def expiry(self) -> float:
-        """
-        Time to expiry (T) in years
-        """
-        ... 
-    
+        """Time to expiry T in years."""
+        ...
+
     @property
     @abstractmethod
     def exercise_style(self) -> ExerciseStyle:
-        """
-        European or American Exercise
-        """
-        ... 
-    
+        """European or American exercise."""
+        ...
+
     def intrinsic_value(self, spot: float) -> float:
         """
-        Immediate exercise value
+        Intrinsic value = immediate exercise value.
+        Used by American option solvers to enforce early exercise constraint.
         """
         return float(self.payoff(np.array([spot]))[0])
